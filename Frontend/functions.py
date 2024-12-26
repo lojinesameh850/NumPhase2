@@ -1,6 +1,7 @@
 import flet as ft
 import numpy as np
 from requests import post
+import sympy
 from sympy import symbols, sympify, lambdify
 import plotly.graph_objects as go
 import dash
@@ -15,6 +16,7 @@ from dash import dcc, html
 from sympy import symbols, lambdify, sympify
 import plotly.graph_objects as go
 import queue
+from sympy.parsing.sympy_parser import parse_expr
 
 def get_child(controls , key):
     child = [control for control in controls.controls if control.key == key][0]
@@ -276,7 +278,8 @@ def send_to_backend_root(event , page : ft.Column):
     # Works Correct
     try:
         function_string : ft.TextField = get_child(get_child(page, "function_input_col"), "funtion_input_string")
-        function_string = function_string.value
+        function_string = function_string.value        
+        function_string = str(parse_expr(function_string, transformations="all"))
         x = symbols('x')
         function_sympy = sympify(function_string)
 
@@ -403,7 +406,8 @@ def send_to_backend_root_single_step(event , page : ft.Column):
     # Works Correct
     try:
         function_string : ft.TextField = get_child(get_child(page, "function_input_col"), "funtion_input_string")
-        function_string = function_string.value
+        function_string = function_string.value        
+        function_string = str(parse_expr(function_string, transformations="all"))
         x = symbols('x')
         function_sympy = sympify(function_string)
 
@@ -546,12 +550,12 @@ def handleAnswerRoot(page : ft.Column, answer):
 
     if "relative_error" in answer:
         eps_a = answer['relative_error']
-        text = ft.Text(size=24 , value=f"Approximate relative error = {eps_a}")
+        text = ft.Text(size=24 , value=f"Approximate relative error = {eps_a:.{significant_digits}g}")
         dialog_content.controls.append(text)
 
     if "significant_figures" in answer:
         correct_sfs = answer['significant_figures']
-        text = ft.Text(size=24 , value=f"Number of correct significant figures = {correct_sfs}")
+        text = ft.Text(size=24 , value=f"Number of correct significant figures = {correct_sfs:.{significant_digits}g}")
         dialog_content.controls.append(text)
 
     if 'time_taken' in answer:
@@ -607,7 +611,7 @@ def display_single_step_table(page: ft.Column, steps: list, significant_digits: 
         controls=[table],  # Add the table to the ListView
         expand=True,       # Allows it to take up available space
         height=400,        # Adjust height as needed
-        width=600          # Adjust width as needed
+        width=800          # Adjust width as needed
     )
 
     dialog.content = scrollable_content
@@ -629,7 +633,10 @@ def start_dash_app():
     # Initial empty figure
     app.layout = html.Div(children=[
         html.H1("Dynamic Function Plot", style={"text-align": "center"}),
-        dcc.Graph(id="graph", figure=go.Figure()),
+        dcc.Graph(id="graph", 
+                  figure=go.Figure(),
+                  style={"width": "100%", "height": "calc(100vh - 100px)"} , 
+        ),
         dcc.Interval(id="interval", interval=1000, n_intervals=0)  # Check for updates every second
     ])
     # Callback to update the chart when new data is available
@@ -660,8 +667,18 @@ def plot_function(event, page):
     # Example call to create_plot with placeholders for function, range, and type
     print(page.controls[0].controls[1].value)
     function_string = page.controls[0].controls[1].value
-    x1, x2 = -10, 10  # Replace with actual range
-    oper_type = 1  # Replace with actual operation type
+    function_string = parse_expr(function_string, transformations="all")
+    oper_type : ft.Dropdown = get_child(page , "operation_dropdown_root")
+    oper_type = int(oper_type.value)
+
+    x1 = get_child(get_child(page, "graph_row"), "graph_input_1")
+    x2 = get_child(get_child(page, "graph_row"), "graph_input_2")
+
+    try:
+        x1 = round(float(x1.value))
+        x2 = round(float(x2.value))
+    except:
+        print("Graph range exception")
     create_plot(function_string, x1, x2, oper_type)
     page.update()
 # Function to create and enqueue a plot
@@ -670,13 +687,33 @@ def create_plot(function_string, x1, x2, oper_type):
         print("About to generate plot data")
         # Parse and generate the function
         x = symbols('x')
+        # Convert string to SymPy expression
         func = sympify(function_string)
+        
+        # Replace 'e' (Euler's number) with its numerical value
+        func = func.subs(sympy.E, sympy.exp(1))
+        
+        # Convert to a NumPy-compatible function
         func_num = lambdify(x, func, modules=["numpy"])
+        
+        # Validate range to avoid excessively large or small numbers
+        if abs(x2 - x1) > 1000:
+            raise ValueError("The range of x is too large. Please use a smaller range.")
+        
         # Generate x and y values
         resolution = 100  # Points per unit
         num_points = int(abs(x2 - x1) * resolution)
         x_vals = np.linspace(x1, x2, max(num_points, 2))
-        y_vals = func_num(x_vals)
+        # y_vals = func_num(x_vals)
+        # Safely compute y values
+        try:
+            y_vals = func_num(x_vals)
+        except Exception as calc_error:
+            raise ValueError(f"Error while evaluating the function: {calc_error}")
+        
+        # Check for infinite or NaN values
+        if not np.isfinite(y_vals).all():
+            raise ValueError("The function produces non-finite values (inf or NaN) in the given range.")
         # Create Plotly figure
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', name=f'f(x) = {function_string}'))
@@ -708,9 +745,10 @@ def create_plot(function_string, x1, x2, oper_type):
         update_queue.put(fig)
         # Ensure the WebView window is displayed
         threading.Thread(target=start_or_redisplay_webview, daemon=True).start()
+    except ValueError as ve:
+        print(f"Input validation error: {ve}")
     except Exception as e:
-       print(f"Error in creating plot: {e}")
-
+        print(f"Error in creating plot: {e}")
 update_queue = queue.Queue()
 
 # Global variable to manage WebView state
