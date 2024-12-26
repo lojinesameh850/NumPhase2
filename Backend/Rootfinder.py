@@ -57,7 +57,7 @@ class RootFinder:
             correct_sfs = -int(sp.log(error, 10).evalf()) if error > 0 else 0
             return {
                 "root": xr,
-                "iterations": iteration,
+                "iterations": iteration+1,
                 "relative_error": error,
                 "time_taken": elapsed,
                 "significant_figures": correct_sfs,
@@ -115,7 +115,7 @@ class RootFinder:
             correct_sfs = -int(sp.log(error, 10).evalf()) if error > 0 else 0
             return {
                 "root": float(xr),
-                "iterations": iteration,
+                "iterations": iteration+1,
                 "relative_error": float(error),
                 "time_taken": elapsed,
                 "significant_figures": correct_sfs,
@@ -251,7 +251,7 @@ class RootFinder:
 
             return {
                 "root": next_guess,
-                "iterations": iteration,
+                "iterations": iteration+1,
                 "relative_error": relative_error,
                 "significant_figures": correct_sfs,
                 "execution_time": execution_time,
@@ -304,7 +304,7 @@ class RootFinder:
 
             return {
                 "root": x2,
-                "iterations": iteration,
+                "iterations": iteration+1,
                 "relative_error": relative_error,
                 "significant_figures": correct_sfs,
                 "execution_time": execution_time,
