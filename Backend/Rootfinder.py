@@ -162,9 +162,9 @@ class RootFinder:
                     }
                 xi = xi2
 
-            raise ConvergenceError("The method did not converge within the maximum number of iterations.")
+            return {"Maximum iterations reached without convergence."}
         except Exception as e:
-            return f"Invalid function expression: {e}"
+            return {f"An error occurred during computation: {e}"}
 
     def ModifiedNewtonRaphson(self, f, initialGuess, minRelativeError, MaxItretion):
         try:
@@ -209,9 +209,9 @@ class RootFinder:
                     }
                 xi = xi2
 
-            raise ConvergenceError("The method did not converge within the maximum number of iterations.")
+            return {"Maximum iterations reached without convergence."}
         except Exception as e:
-            return f"Invalid function expression: {e}"
+            return {f"An error occurred during computation: {e}"}
 
     def fixedPointMethod(self, g_exp, initial_guess, eps=1e-5, max_it=50):
         try:
