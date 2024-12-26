@@ -607,7 +607,7 @@ def display_single_step_table(page: ft.Column, steps: list, significant_digits: 
         controls=[table],  # Add the table to the ListView
         expand=True,       # Allows it to take up available space
         height=400,        # Adjust height as needed
-        width=600          # Adjust width as needed
+        width=800          # Adjust width as needed
     )
 
     dialog.content = scrollable_content
